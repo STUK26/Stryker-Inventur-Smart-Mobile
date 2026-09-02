@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 0.4</title>
+<title>Stryker Inventur Smart Mobile 0.5</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -101,7 +101,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.4 · iPhone Scanner · kompakte Ansicht</p>
+    <p>Prototyp 0.5 · Scanpause · Bestätigungston</p>
   </div>
 
   <div class="card">
@@ -191,8 +191,9 @@ const AREA_KEY='stryker_inventur_mobile_v03_area';
 let area=localStorage.getItem(AREA_KEY)||'Lager';
 let scans=safeParse(localStorage.getItem(STORAGE_KEY),[]);
 let stream=null, reader=null, detecting=false;
-let lastDetected='', lastDetectedAt=0;
-const SCAN_COOLDOWN=1200;
+let scanLocked=false;
+let audioCtx=null;
+const SCAN_PAUSE=1600;
 
 function safeParse(s,fallback){
   try{return JSON.parse(s)??fallback}catch(e){return fallback}
@@ -232,8 +233,41 @@ function bookArticle(article){
   });
   save();
 
-  if(navigator.vibrate)navigator.vibrate(80);
   document.getElementById('qty').value='1';
+}
+
+function initAudio(){
+  try{
+    if(!audioCtx){
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(AudioContextClass) audioCtx=new AudioContextClass();
+    }
+    if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+}
+
+function confirmScan(){
+  if(navigator.vibrate) navigator.vibrate(90);
+
+  try{
+    initAudio();
+    if(!audioCtx) return;
+
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    const now=audioCtx.currentTime;
+
+    osc.type='sine';
+    osc.frequency.setValueAtTime(880,now);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.16,now+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.11);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now+0.12);
+  }catch(e){}
 }
 
 function addManual(){
@@ -272,6 +306,7 @@ async function toggleCamera(){
 
 async function startCamera(){
   hideCameraMessage();
+  initAudio();
   if(typeof ZXing==='undefined'){
     showCameraMessage('ZXing konnte nicht geladen werden. Internetverbindung prüfen.');
     return;
@@ -284,14 +319,22 @@ async function startCamera(){
     showCameraMessage('Scanner aktiv – Barcode in den gelben Rahmen halten.','good');
     const video=document.getElementById('video');
     reader.decodeFromVideoDevice(undefined, video, (res, err)=>{
-      if(!detecting || !res) return;
+      if(!detecting || !res || scanLocked) return;
+
       const value=String(res.text||'').trim();
-      const now=Date.now();
-      if(!value || (value===lastDetected && now-lastDetectedAt<SCAN_COOLDOWN)) return;
-      lastDetected=value; lastDetectedAt=now;
+      if(!value) return;
+
+      scanLocked=true;
       bookArticle(value);
-      showCameraMessage(`Gebucht: ${value}`,'good');
-      if(navigator.vibrate) navigator.vibrate(80);
+      confirmScan();
+      showCameraMessage(`✓ Gebucht: ${value} · kurze Scanpause`,'good');
+
+      setTimeout(()=>{
+        scanLocked=false;
+        if(detecting){
+          showCameraMessage('Scanner bereit – nächster Barcode.','good');
+        }
+      },SCAN_PAUSE);
     });
   }catch(err){
     console.error(err);
@@ -302,6 +345,7 @@ async function startCamera(){
 
 function stopCamera(){
   detecting=false;
+  scanLocked=false;
   if(reader){try{reader.reset()}catch(e){} reader=null;}
   const video=document.getElementById('video');
   if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
