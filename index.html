@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Stryker Inventur Smart Mobile 0.3</title>
+<style>
+:root{
+  --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
+  --line:#d1d5db; --yellow:#ffcc00; --dark:#111; --danger:#b91c1c;
+  --green:#166534;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.wrap{max-width:540px;margin:0 auto;padding:10px 10px 18px}
+.header{
+  background:var(--dark);color:white;border-radius:14px;padding:14px 16px;margin-bottom:10px
+}
+.header h1{font-size:19px;margin:0 0 3px}
+.header p{margin:0;color:#d1d5db;font-size:11px}
+.card{
+  background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;
+  box-shadow:0 1px 5px rgba(0,0,0,.08)
+}
+.label{font-weight:700;font-size:13px;margin-bottom:7px;display:block}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{
+  border:0;border-radius:11px;padding:13px 10px;font-size:15px;font-weight:700;cursor:pointer
+}
+.area{background:#e5e7eb;color:#111827}
+.area.active{background:var(--yellow);color:#111}
+input{
+  width:100%;border:2px solid var(--line);border-radius:11px;padding:11px 12px;
+  font-size:17px;outline:none
+}
+input:focus{border-color:#111}
+.scanbtn{width:100%;background:var(--yellow);color:#111;margin-top:8px}
+.secondary{width:100%;background:#e5e7eb;color:#111}
+.danger{width:100%;background:#fee2e2;color:var(--danger)}
+.export{width:100%;background:#111;color:white}
+.status{font-size:13px;line-height:1.35}
+.big{font-size:20px;font-weight:800;word-break:break-all}
+.muted{color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.stat{background:#f9fafb;border-radius:10px;padding:9px 10px}
+.stat strong{display:block;font-size:18px}
+.footer{text-align:center;color:var(--muted);font-size:10px;line-height:1.35;padding:0 6px}
+.actionrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.compactrow{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:end}
+.togglebar{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;cursor:pointer;padding:2px 0;font-weight:700;font-size:13px
+}
+.chev{font-size:14px;color:var(--muted)}
+.collapsible{display:none;margin-top:10px}
+.collapsible.open{display:block}
+.historyItem{
+  padding:7px 0;border-top:1px solid #eee;display:grid;
+  grid-template-columns:1fr auto;gap:8px;font-size:12px
+}
+.badge{font-size:10px;background:#f3f4f6;padding:3px 6px;border-radius:999px}
+.cameraBox{display:none;margin-top:10px}
+.cameraBox.open{display:block}
+.videoWrap{position:relative;overflow:hidden;border-radius:12px;background:#000;aspect-ratio:3/4}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.scanFrame{
+  position:absolute;left:8%;right:8%;top:39%;height:22%;
+  border:3px solid var(--yellow);border-radius:12px;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.22);pointer-events:none
+}
+.cameraHint{margin-top:6px;font-size:11px;color:var(--muted);text-align:center}
+.message{margin-top:8px;padding:9px 10px;border-radius:9px;font-size:11px;display:none}
+.message.show{display:block}
+.message.good{background:#dcfce7;color:var(--green)}
+.message.warn{background:#fef3c7;color:#92400e}
+.smallbtn{padding:10px 10px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>STRYKER INVENTUR SMART MOBILE</h1>
+    <p>Prototyp 0.3 · lokal · kompakte Scanansicht</p>
+  </div>
+
+  <div class="card">
+    <span class="label">Bereich</span>
+    <div class="seg">
+      <button id="lagerBtn" class="area active" onclick="setArea('Lager')">LAGER</button>
+      <button id="vitoBtn" class="area" onclick="setArea('Vito')">VITO</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="compactrow">
+      <div>
+        <span class="label">Menge</span>
+        <input id="qty" type="number" min="1" step="1" value="1" inputmode="numeric">
+      </div>
+      <div>
+        <span class="label">Scan</span>
+        <button id="cameraBtn" class="scanbtn" style="margin-top:0" onclick="toggleCamera()">📷 BARCODE SCANNEN</button>
+      </div>
+    </div>
+
+    <div id="cameraBox" class="cameraBox">
+      <div class="videoWrap">
+        <video id="video" playsinline muted></video>
+        <div class="scanFrame"></div>
+      </div>
+      <div class="cameraHint">Barcode waagerecht in den gelben Rahmen halten.</div>
+      <button class="secondary smallbtn" style="margin-top:8px" onclick="stopCamera()">KAMERA SCHLIESSEN</button>
+    </div>
+
+    <div id="cameraMessage" class="message"></div>
+  </div>
+
+  <div class="card">
+    <span class="label">Letzte Buchung</span>
+    <div id="lastArticle" class="big">Noch keine Buchung</div>
+    <div id="lastInfo" class="status muted">Bereich: Lager · Menge: 1</div>
+
+    <div class="stats">
+      <div class="stat"><span class="muted">Buchungen</span><strong id="positions">0</strong></div>
+      <div class="stat"><span class="muted">Stück gesamt</span><strong id="pieces">0</strong></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actionrow">
+      <button class="secondary" onclick="undoLast()">RÜCKGÄNGIG</button>
+      <button class="secondary" onclick="toggleHistory()">VERLAUF (<span id="historyCount">0</span>)</button>
+    </div>
+
+    <div id="historyBox" class="collapsible">
+      <div id="history" class="muted">Noch keine Daten.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="togglebar" onclick="toggleManual()">
+      <span>Manuelle Eingabe / Handscanner</span>
+      <span id="manualChev" class="chev">▼</span>
+    </div>
+    <div id="manualBox" class="collapsible">
+      <input id="article" type="text" autocomplete="off" autocapitalize="off"
+             placeholder="Artikelnummer eingeben oder scannen">
+      <button class="secondary smallbtn" style="margin-top:8px" onclick="addManual()">ÜBERNEHMEN</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="export" onclick="exportCSV()">INVENTUR ALS CSV EXPORTIEREN</button>
+  </div>
+
+  <div class="card">
+    <button class="danger smallbtn" onclick="clearAll()">ALLE LOKALEN DATEN LÖSCHEN</button>
+  </div>
+
+  <div class="footer">
+    Gespeichert werden nur Zeit, Artikelnummer, Bereich und Menge im lokalen Browser-Speicher.
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY='stryker_inventur_mobile_v03_scans';
+const AREA_KEY='stryker_inventur_mobile_v03_area';
+
+let area=localStorage.getItem(AREA_KEY)||'Lager';
+let scans=safeParse(localStorage.getItem(STORAGE_KEY),[]);
+let stream=null, detector=null, detecting=false;
+let lastDetected='', lastDetectedAt=0;
+
+function safeParse(s,fallback){
+  try{return JSON.parse(s)??fallback}catch(e){return fallback}
+}
+
+function formatLocalDate(date){
+  const p=n=>String(n).padStart(2,'0');
+  return `${p(date.getDate())}.${p(date.getMonth()+1)}.${date.getFullYear()} ${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
+}
+
+function setArea(value){
+  area=value;
+  localStorage.setItem(AREA_KEY,area);
+  document.getElementById('lagerBtn').classList.toggle('active',area==='Lager');
+  document.getElementById('vitoBtn').classList.toggle('active',area==='Vito');
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(scans));
+  render();
+}
+
+function currentQty(){
+  const q=parseInt(document.getElementById('qty').value,10);
+  return Number.isInteger(q)&&q>0?q:1;
+}
+
+function bookArticle(article){
+  article=String(article||'').trim();
+  if(!article)return;
+
+  scans.push({
+    time:formatLocalDate(new Date()),
+    article,
+    area,
+    qty:currentQty()
+  });
+  save();
+
+  if(navigator.vibrate)navigator.vibrate(80);
+  document.getElementById('qty').value='1';
+}
+
+function addManual(){
+  const el=document.getElementById('article');
+  const value=el.value.trim();
+  if(!value){el.focus();return}
+  bookArticle(value);
+  el.value='';
+  el.focus();
+}
+
+function toggleManual(){
+  const box=document.getElementById('manualBox');
+  box.classList.toggle('open');
+  document.getElementById('manualChev').textContent=box.classList.contains('open')?'▲':'▼';
+}
+
+function toggleHistory(){
+  document.getElementById('historyBox').classList.toggle('open');
+}
+
+function showCameraMessage(text,type='warn'){
+  const el=document.getElementById('cameraMessage');
+  el.textContent=text;
+  el.className=`message show ${type}`;
+}
+
+function hideCameraMessage(){
+  document.getElementById('cameraMessage').className='message';
+}
+
+async function toggleCamera(){
+  if(stream){stopCamera();return}
+  await startCamera();
+}
+
+async function startCamera(){
+  hideCameraMessage();
+
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showCameraMessage('Dieser Browser erlaubt hier keinen Kamerazugriff.');
+    return;
+  }
+
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+      audio:false
+    });
+
+    const video=document.getElementById('video');
+    video.srcObject=stream;
+    await video.play();
+    document.getElementById('cameraBox').classList.add('open');
+    document.getElementById('cameraBtn').textContent='KAMERA LÄUFT';
+
+    if('BarcodeDetector' in window){
+      const wanted=['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','data_matrix','qr_code'];
+      let supported=[];
+      try{supported=await BarcodeDetector.getSupportedFormats()}catch(e){}
+      const formats=wanted.filter(x=>supported.includes(x));
+      detector=new BarcodeDetector(formats.length?{formats}:undefined);
+      detecting=true;
+      showCameraMessage('Kamera aktiv. Automatische Barcode-Erkennung verfügbar.','good');
+      scanLoop();
+    }else{
+      showCameraMessage('Kamera aktiv. Automatische Barcode-Erkennung ist in diesem Browser nicht verfügbar.');
+    }
+  }catch(err){
+    console.error(err);
+    showCameraMessage('Kamera konnte nicht geöffnet werden. Bitte Kameraberechtigung prüfen.');
+    stopCamera();
+  }
+}
+
+async function scanLoop(){
+  if(!detecting||!stream||!detector)return;
+
+  const video=document.getElementById('video');
+  try{
+    if(video.readyState>=2){
+      const codes=await detector.detect(video);
+      if(codes&&codes.length){
+        const value=String(codes[0].rawValue||'').trim();
+        const now=Date.now();
+
+        if(value&&(value!==lastDetected||now-lastDetectedAt>1800)){
+          lastDetected=value;
+          lastDetectedAt=now;
+          bookArticle(value);
+          showCameraMessage(`Gebucht: ${value}`,'good');
+          await new Promise(r=>setTimeout(r,900));
+        }
+      }
+    }
+  }catch(e){}
+
+  if(detecting)requestAnimationFrame(scanLoop);
+}
+
+function stopCamera(){
+  detecting=false;
+  detector=null;
+  if(stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream=null;
+  }
+  const video=document.getElementById('video');
+  video.srcObject=null;
+  document.getElementById('cameraBox').classList.remove('open');
+  document.getElementById('cameraBtn').textContent='📷 BARCODE SCANNEN';
+}
+
+function undoLast(){
+  if(!scans.length)return;
+  scans.pop();
+  save();
+}
+
+function clearAll(){
+  if(!scans.length)return;
+  if(confirm('Wirklich alle lokal gespeicherten Inventurdaten löschen?')){
+    scans=[];
+    save();
+  }
+}
+
+function render(){
+  setArea(area);
+
+  document.getElementById('positions').textContent=scans.length;
+  document.getElementById('pieces').textContent=scans.reduce((s,x)=>s+Number(x.qty||0),0);
+  document.getElementById('historyCount').textContent=Math.min(scans.length,5);
+
+  const last=scans[scans.length-1];
+  if(last){
+    document.getElementById('lastArticle').textContent=last.article;
+    document.getElementById('lastInfo').textContent=
+      `${last.time} · ${last.area} · Menge ${last.qty}`;
+  }else{
+    document.getElementById('lastArticle').textContent='Noch keine Buchung';
+    document.getElementById('lastInfo').textContent=`Bereich: ${area} · Menge: 1`;
+  }
+
+  const hist=document.getElementById('history');
+  const lastFive=scans.slice(-5).reverse();
+
+  if(!lastFive.length){
+    hist.className='muted';
+    hist.textContent='Noch keine Daten.';
+  }else{
+    hist.className='';
+    hist.innerHTML=lastFive.map(x=>
+      `<div class="historyItem">
+        <div><strong>${escapeHtml(x.article)}</strong><br><span class="muted">${escapeHtml(x.time)}</span></div>
+        <div><span class="badge">${escapeHtml(x.area)} · ${x.qty}</span></div>
+      </div>`
+    ).join('');
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+
+function csvEscape(value){
+  const s=String(value??'');
+  return '"' + s.replaceAll('"','""') + '"';
+}
+
+function exportCSV(){
+  if(!scans.length){
+    alert('Es sind noch keine Inventurdaten vorhanden.');
+    return;
+  }
+
+  const rows=[['Zeit','Artikelnummer','Bereich','Menge']];
+  scans.forEach(s=>rows.push([s.time,s.article,s.area,s.qty]));
+  const csv='\ufeff'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n');
+
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  a.href=url;
+  a.download=`Stryker_Inventur_Mobile_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+document.getElementById('article').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    addManual();
+  }
+});
+
+window.addEventListener('pagehide',stopCamera);
+render();
+</script>
+</body>
+</html>
