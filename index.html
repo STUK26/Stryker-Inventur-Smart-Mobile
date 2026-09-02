@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 0.5</title>
+<title>Stryker Inventur Smart Mobile 0.6</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -96,12 +96,39 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 }
 @media (min-width:700px){.wrap{max-width:680px}.header h1{font-size:22px}}
 </style>
+
+<style>
+/* 0.6: kompaktere Kamera + bewusster Einzelscan */
+#cameraVideo, video {
+  max-height: 170px !important;
+  height: 170px !important;
+  object-fit: cover !important;
+}
+.scan-trigger {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #ffd23f;
+  color: #111;
+  font: inherit;
+  font-weight: 900;
+  font-size: 18px;
+}
+.scan-trigger:disabled { opacity: .55; }
+@media (max-height: 750px) {
+  #cameraVideo, video { max-height: 135px !important; height: 135px !important; }
+  .scan-trigger { min-height: 48px; margin-top: 6px; }
+}
+</style>
+
 </head>
 <body>
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.5 · Scanpause · Bestätigungston</p>
+    <p>Prototyp 0.6 · Scan-Taste · Bestätigungston</p>
   </div>
 
   <div class="card">
@@ -127,6 +154,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     <div id="cameraBox" class="cameraBox">
       <div class="videoWrap">
         <video id="video" playsinline muted></video>
+<button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
         <div class="scanFrame"></div>
       </div>
       <div class="cameraHint">Barcode waagerecht in den gelben Rahmen halten.</div>
@@ -191,9 +219,7 @@ const AREA_KEY='stryker_inventur_mobile_v03_area';
 let area=localStorage.getItem(AREA_KEY)||'Lager';
 let scans=safeParse(localStorage.getItem(STORAGE_KEY),[]);
 let stream=null, reader=null, detecting=false;
-let scanLocked=false;
 let audioCtx=null;
-const SCAN_PAUSE=1600;
 
 function safeParse(s,fallback){
   try{return JSON.parse(s)??fallback}catch(e){return fallback}
@@ -260,13 +286,13 @@ function confirmScan(){
     osc.type='sine';
     osc.frequency.setValueAtTime(880,now);
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.16,now+0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.11);
+    gain.gain.exponentialRampToValueAtTime(0.55,now+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.18);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start(now);
-    osc.stop(now+0.12);
+    osc.stop(now+0.19);
   }catch(e){}
 }
 
@@ -318,23 +344,34 @@ async function startCamera(){
     detecting=true;
     showCameraMessage('Scanner aktiv – Barcode in den gelben Rahmen halten.','good');
     const video=document.getElementById('video');
+    let scanArmed=false;
+    const trigger=document.getElementById('scanTrigger');
+    if(trigger){
+      trigger.disabled=false;
+      trigger.onclick=()=>{
+        initAudio();
+        scanArmed=true;
+        trigger.disabled=true;
+        trigger.textContent='SCANNEN…';
+        showCameraMessage('Barcode vor die Kamera halten.','good');
+      };
+    }
+
     reader.decodeFromVideoDevice(undefined, video, (res, err)=>{
-      if(!detecting || !res || scanLocked) return;
+      if(!detecting || !res || !scanArmed) return;
 
       const value=String(res.text||'').trim();
       if(!value) return;
 
-      scanLocked=true;
+      scanArmed=false;
       bookArticle(value);
       confirmScan();
-      showCameraMessage(`✓ Gebucht: ${value} · kurze Scanpause`,'good');
+      showCameraMessage(`✓ Gebucht: ${value}`,'good');
 
-      setTimeout(()=>{
-        scanLocked=false;
-        if(detecting){
-          showCameraMessage('Scanner bereit – nächster Barcode.','good');
-        }
-      },SCAN_PAUSE);
+      if(trigger){
+        trigger.disabled=false;
+        trigger.textContent='📷 SCANNEN';
+      }
     });
   }catch(err){
     console.error(err);
@@ -345,7 +382,6 @@ async function startCamera(){
 
 function stopCamera(){
   detecting=false;
-  scanLocked=false;
   if(reader){try{reader.reset()}catch(e){} reader=null;}
   const video=document.getElementById('video');
   if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
