@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 0.7</title>
+<title>Stryker Inventur Smart Mobile 0.8</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -104,7 +104,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 }
 .videoWrap {
   width: 100%;
-  height: 155px;
+  height: 205px;
   aspect-ratio: auto !important;
   margin: 0 auto;
   overflow: hidden;
@@ -124,11 +124,11 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 }
 .scanFrame {
   position: absolute;
-  left: 8%;
-  right: 8%;
+  left: 4%;
+  right: 4%;
   top: 50%;
   transform: translateY(-50%);
-  height: 42%;
+  height: 58%;
   border-radius: 10px;
   pointer-events: none;
 }
@@ -148,7 +148,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .scan-trigger:disabled { opacity: .55; }
 
 @media (max-height: 750px) {
-  .videoWrap { height: 125px; }
+  .videoWrap { height: 165px; }
   .scan-trigger { min-height: 46px; margin-top: 6px; font-size: 17px; }
 }
 </style>
@@ -158,7 +158,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.7 · Kamera ausgerichtet · Einzelscan</p>
+    <p>Prototyp 0.8 · gezielter Artikelscan · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -187,7 +187,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
         <div class="scanFrame"></div>
       </div>
       <button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
-      <div class="cameraHint">Barcode waagerecht in den gelben Rahmen halten.</div>
+      <div class="cameraHint">Barcode groß und mittig in den gelben Rahmen halten.</div>
       <button class="secondary smallbtn" style="margin-top:8px" onclick="stopCamera()">KAMERA SCHLIESSEN</button>
     </div>
 
@@ -370,7 +370,17 @@ async function startCamera(){
   try{
     document.getElementById('cameraBox').classList.add('open');
     document.getElementById('cameraBtn').textContent='KAMERA LÄUFT';
-    reader=new ZXing.BrowserBarcodeReader(250);
+    const hints=new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF
+    ]);
+    reader=new ZXing.BrowserBarcodeReader(250,hints);
     detecting=true;
     showCameraMessage('Scanner aktiv – Barcode in den gelben Rahmen halten.','good');
     const video=document.getElementById('video');
@@ -392,6 +402,11 @@ async function startCamera(){
 
       const value=String(res.text||'').trim();
       if(!value) return;
+
+      if(!/^[A-Za-z0-9-]{3,32}$/.test(value)){
+        showCameraMessage('Nicht eindeutig – Barcode bitte mittig halten.','bad');
+        return;
+      }
 
       scanArmed=false;
       bookArticle(value);
