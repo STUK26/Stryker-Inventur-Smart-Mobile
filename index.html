@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 0.6</title>
+<title>Stryker Inventur Smart Mobile 0.7</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -98,16 +98,45 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 </style>
 
 <style>
-/* 0.6: kompaktere Kamera + bewusster Einzelscan */
-#cameraVideo, video {
-  max-height: 170px !important;
-  height: 170px !important;
+/* 0.7: Kamera sauber zentriert + kompakter Einzelscan */
+.cameraBox {
+  width: 100%;
+}
+.videoWrap {
+  width: 100%;
+  height: 155px;
+  aspect-ratio: auto !important;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #000;
+  position: relative;
+}
+.videoWrap video,
+#video {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
   object-fit: cover !important;
+  object-position: center center !important;
+  margin: 0 !important;
+}
+.scanFrame {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 42%;
+  border-radius: 10px;
+  pointer-events: none;
 }
 .scan-trigger {
+  display: block;
   width: 100%;
-  min-height: 54px;
-  margin-top: 8px;
+  min-height: 52px;
+  margin: 8px 0 0 0;
   border: 0;
   border-radius: 14px;
   background: #ffd23f;
@@ -117,9 +146,10 @@ video{width:100%;height:100%;object-fit:cover;display:block}
   font-size: 18px;
 }
 .scan-trigger:disabled { opacity: .55; }
+
 @media (max-height: 750px) {
-  #cameraVideo, video { max-height: 135px !important; height: 135px !important; }
-  .scan-trigger { min-height: 48px; margin-top: 6px; }
+  .videoWrap { height: 125px; }
+  .scan-trigger { min-height: 46px; margin-top: 6px; font-size: 17px; }
 }
 </style>
 
@@ -128,7 +158,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.6 · Scan-Taste · Bestätigungston</p>
+    <p>Prototyp 0.7 · Kamera ausgerichtet · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -154,9 +184,9 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     <div id="cameraBox" class="cameraBox">
       <div class="videoWrap">
         <video id="video" playsinline muted></video>
-<button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
         <div class="scanFrame"></div>
       </div>
+      <button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
       <div class="cameraHint">Barcode waagerecht in den gelben Rahmen halten.</div>
       <button class="secondary smallbtn" style="margin-top:8px" onclick="stopCamera()">KAMERA SCHLIESSEN</button>
     </div>
