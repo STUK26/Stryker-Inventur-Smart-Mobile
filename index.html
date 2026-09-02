@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 0.3</title>
+<title>Stryker Inventur Smart Mobile 0.4</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -80,13 +80,28 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .message.good{background:#dcfce7;color:var(--green)}
 .message.warn{background:#fef3c7;color:#92400e}
 .smallbtn{padding:10px 10px;font-size:13px}
+
+/* 0.4: automatische Display-Anpassung */
+@media (max-height: 760px){
+  .wrap{padding:6px 8px 10px}.header{padding:9px 12px;margin-bottom:6px;border-radius:11px}
+  .header h1{font-size:16px}.header p{font-size:9px}.card{padding:8px;margin-bottom:6px;border-radius:11px}
+  .label{font-size:11px;margin-bottom:4px}button{padding:10px 8px;font-size:13px;border-radius:9px}
+  input{padding:8px 9px;font-size:15px}.big{font-size:17px}.status{font-size:11px}
+  .stats{margin-top:5px;gap:6px}.stat{padding:6px 8px}.stat strong{font-size:15px}
+  .footer{font-size:8px}.compactrow{grid-template-columns:76px 1fr;gap:6px}
+}
+@media (max-height: 680px){
+  .header p,.footer{display:none}.header{padding:7px 10px}.header h1{font-size:14px}
+  .card{padding:7px;margin-bottom:5px}.stats{display:flex}.stat{flex:1}
+}
+@media (min-width:700px){.wrap{max-width:680px}.header h1{font-size:22px}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.3 · lokal · kompakte Scanansicht</p>
+    <p>Prototyp 0.4 · iPhone Scanner · kompakte Ansicht</p>
   </div>
 
   <div class="card">
@@ -168,14 +183,16 @@ video{width:100%;height:100%;object-fit:cover;display:block}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
 const STORAGE_KEY='stryker_inventur_mobile_v03_scans';
 const AREA_KEY='stryker_inventur_mobile_v03_area';
 
 let area=localStorage.getItem(AREA_KEY)||'Lager';
 let scans=safeParse(localStorage.getItem(STORAGE_KEY),[]);
-let stream=null, detector=null, detecting=false;
+let stream=null, reader=null, detecting=false;
 let lastDetected='', lastDetectedAt=0;
+const SCAN_COOLDOWN=1200;
 
 function safeParse(s,fallback){
   try{return JSON.parse(s)??fallback}catch(e){return fallback}
@@ -255,36 +272,27 @@ async function toggleCamera(){
 
 async function startCamera(){
   hideCameraMessage();
-
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    showCameraMessage('Dieser Browser erlaubt hier keinen Kamerazugriff.');
+  if(typeof ZXing==='undefined'){
+    showCameraMessage('ZXing konnte nicht geladen werden. Internetverbindung prüfen.');
     return;
   }
-
   try{
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
-      audio:false
-    });
-
-    const video=document.getElementById('video');
-    video.srcObject=stream;
-    await video.play();
     document.getElementById('cameraBox').classList.add('open');
     document.getElementById('cameraBtn').textContent='KAMERA LÄUFT';
-
-    if('BarcodeDetector' in window){
-      const wanted=['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','data_matrix','qr_code'];
-      let supported=[];
-      try{supported=await BarcodeDetector.getSupportedFormats()}catch(e){}
-      const formats=wanted.filter(x=>supported.includes(x));
-      detector=new BarcodeDetector(formats.length?{formats}:undefined);
-      detecting=true;
-      showCameraMessage('Kamera aktiv. Automatische Barcode-Erkennung verfügbar.','good');
-      scanLoop();
-    }else{
-      showCameraMessage('Kamera aktiv. Automatische Barcode-Erkennung ist in diesem Browser nicht verfügbar.');
-    }
+    reader=new ZXing.BrowserBarcodeReader(250);
+    detecting=true;
+    showCameraMessage('Scanner aktiv – Barcode in den gelben Rahmen halten.','good');
+    const video=document.getElementById('video');
+    reader.decodeFromVideoDevice(undefined, video, (res, err)=>{
+      if(!detecting || !res) return;
+      const value=String(res.text||'').trim();
+      const now=Date.now();
+      if(!value || (value===lastDetected && now-lastDetectedAt<SCAN_COOLDOWN)) return;
+      lastDetected=value; lastDetectedAt=now;
+      bookArticle(value);
+      showCameraMessage(`Gebucht: ${value}`,'good');
+      if(navigator.vibrate) navigator.vibrate(80);
+    });
   }catch(err){
     console.error(err);
     showCameraMessage('Kamera konnte nicht geöffnet werden. Bitte Kameraberechtigung prüfen.');
@@ -292,39 +300,11 @@ async function startCamera(){
   }
 }
 
-async function scanLoop(){
-  if(!detecting||!stream||!detector)return;
-
-  const video=document.getElementById('video');
-  try{
-    if(video.readyState>=2){
-      const codes=await detector.detect(video);
-      if(codes&&codes.length){
-        const value=String(codes[0].rawValue||'').trim();
-        const now=Date.now();
-
-        if(value&&(value!==lastDetected||now-lastDetectedAt>1800)){
-          lastDetected=value;
-          lastDetectedAt=now;
-          bookArticle(value);
-          showCameraMessage(`Gebucht: ${value}`,'good');
-          await new Promise(r=>setTimeout(r,900));
-        }
-      }
-    }
-  }catch(e){}
-
-  if(detecting)requestAnimationFrame(scanLoop);
-}
-
 function stopCamera(){
   detecting=false;
-  detector=null;
-  if(stream){
-    stream.getTracks().forEach(t=>t.stop());
-    stream=null;
-  }
+  if(reader){try{reader.reset()}catch(e){} reader=null;}
   const video=document.getElementById('video');
+  if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
   video.srcObject=null;
   document.getElementById('cameraBox').classList.remove('open');
   document.getElementById('cameraBtn').textContent='📷 BARCODE SCANNEN';
