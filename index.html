@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 1.0</title>
+<title>Stryker Inventur Smart Mobile 1.1</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -228,7 +228,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .historyEmpty{padding:18px 4px;text-align:center;color:var(--muted);font-size:12px}
 
 
-/* 1.0: Kamera + Licht, ohne Änderung der Barcode-Erkennung */
+/* 1.1: LICHT-Logik wie im funktionierenden Lieferschein-Scanner */
 .cameraBox.open{
   padding-top:6px;
 }
@@ -270,7 +270,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Version 1.0 · Verlauf · Licht · Einzelscan</p>
+    <p>Version 1.1 · Verlauf · Licht · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -299,7 +299,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
         <div class="scanFrame"></div>
       </div>
       <div class="cameraControls">
-        <button id="torchBtn" class="cameraControl secondary" type="button" onclick="toggleTorch()" disabled>🔦 LICHT</button>
+        <button id="torchBtn" class="cameraControl secondary" type="button" onclick="toggleTorch()">🔦 LICHT</button>
         <button id="scanTrigger" class="cameraControl scan-trigger" type="button" disabled>📷 SCANNEN</button>
         <button class="cameraControl secondary" type="button" onclick="stopCamera()">✕ SCHLIESSEN</button>
       </div>
@@ -415,7 +415,7 @@ let sessionId='';
 let lastBackupCount=0;
 
 let stream=null, reader=null, detecting=false;
-let torchTrack=null, torchOn=false;
+let torchOn=false;
 let audioCtx=null;
 
 function safeParse(s,fallback){
@@ -836,8 +836,6 @@ async function startCamera(){
       };
     }
 
-    setTimeout(setupTorch,700);
-
     reader.decodeFromVideoDevice(undefined, video, async (res, err)=>{
       if(!detecting || !res || !scanArmed) return;
 
@@ -866,69 +864,47 @@ async function startCamera(){
   }
 }
 
-async function setupTorch(){
-  torchTrack=null;
-  torchOn=false;
-  const btn=document.getElementById('torchBtn');
-  if(btn){
-    btn.disabled=true;
-    btn.classList.remove('active');
-    btn.textContent='🔦 LICHT';
-  }
-
-  try{
-    const video=document.getElementById('video');
-    const activeStream=video.srcObject;
-    if(!activeStream) return;
-
-    const tracks=activeStream.getVideoTracks();
-    if(!tracks.length) return;
-
-    const track=tracks[0];
-    const caps=track.getCapabilities ? track.getCapabilities() : {};
-    if(caps && caps.torch){
-      torchTrack=track;
-      if(btn) btn.disabled=false;
-    }
-  }catch(e){
-    console.warn('Torch nicht verfügbar',e);
-  }
-}
-
 async function toggleTorch(){
   const btn=document.getElementById('torchBtn');
-  if(!torchTrack){
-    showCameraMessage('Licht wird von dieser Kamera nicht unterstützt.','warn');
+  const video=document.getElementById('video');
+
+  if(!video.srcObject){
+    showCameraMessage('SCANNER STARTEN','warn');
     return;
   }
 
   try{
-    torchOn=!torchOn;
-    await torchTrack.applyConstraints({advanced:[{torch:torchOn}]});
-    if(btn){
-      btn.classList.toggle('active',torchOn);
-      btn.textContent=torchOn?'🔦 LICHT AN':'🔦 LICHT';
+    const track=video.srcObject.getVideoTracks()[0];
+    const caps=track.getCapabilities();
+
+    if(!caps.torch){
+      showCameraMessage('LICHT NICHT VERFÜGBAR','warn');
+      return;
     }
+
+    torchOn=!torchOn;
+    await track.applyConstraints({advanced:[{torch:torchOn}]});
+    btn.textContent=torchOn?'🔦 LICHT AUS':'🔦 LICHT';
+    btn.classList.toggle('active',torchOn);
   }catch(e){
     torchOn=false;
-    if(btn){
-      btn.classList.remove('active');
-      btn.textContent='🔦 LICHT';
-    }
-    showCameraMessage('Licht konnte nicht eingeschaltet werden.','warn');
+    btn.textContent='🔦 LICHT';
+    btn.classList.remove('active');
+    showCameraMessage('LICHT NICHT VERFÜGBAR','warn');
   }
 }
 
 function stopCamera(){
   detecting=false;
-  if(torchTrack && torchOn){
-    try{torchTrack.applyConstraints({advanced:[{torch:false}]})}catch(e){}
+  if(torchOn && video.srcObject){
+    try{
+      const track=video.srcObject.getVideoTracks()[0];
+      track.applyConstraints({advanced:[{torch:false}]});
+    }catch(e){}
   }
-  torchTrack=null;
   torchOn=false;
   const torchBtn=document.getElementById('torchBtn');
   if(torchBtn){
-    torchBtn.disabled=true;
     torchBtn.classList.remove('active');
     torchBtn.textContent='🔦 LICHT';
   }
