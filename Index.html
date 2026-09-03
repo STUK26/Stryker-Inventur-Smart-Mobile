@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Stryker Inventur Smart Mobile 0.9</title>
+<style>
+:root{
+  --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
+  --line:#d1d5db; --yellow:#ffcc00; --dark:#111; --danger:#b91c1c;
+  --green:#166534;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.wrap{max-width:540px;margin:0 auto;padding:10px 10px 18px}
+.header{
+  background:var(--dark);color:white;border-radius:14px;padding:14px 16px;margin-bottom:10px
+}
+.header h1{font-size:19px;margin:0 0 3px}
+.header p{margin:0;color:#d1d5db;font-size:11px}
+.card{
+  background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;
+  box-shadow:0 1px 5px rgba(0,0,0,.08)
+}
+.label{font-weight:700;font-size:13px;margin-bottom:7px;display:block}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{
+  border:0;border-radius:11px;padding:13px 10px;font-size:15px;font-weight:700;cursor:pointer
+}
+.area{background:#e5e7eb;color:#111827}
+.area.active{background:var(--yellow);color:#111}
+input{
+  width:100%;border:2px solid var(--line);border-radius:11px;padding:11px 12px;
+  font-size:17px;outline:none
+}
+input:focus{border-color:#111}
+.scanbtn{width:100%;background:var(--yellow);color:#111;margin-top:8px}
+.secondary{width:100%;background:#e5e7eb;color:#111}
+.danger{width:100%;background:#fee2e2;color:var(--danger)}
+.export{width:100%;background:#111;color:white}
+.status{font-size:13px;line-height:1.35}
+.big{font-size:20px;font-weight:800;word-break:break-all}
+.muted{color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.stat{background:#f9fafb;border-radius:10px;padding:9px 10px}
+.stat strong{display:block;font-size:18px}
+.footer{text-align:center;color:var(--muted);font-size:10px;line-height:1.35;padding:0 6px}
+.actionrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.compactrow{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:end}
+.togglebar{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;cursor:pointer;padding:2px 0;font-weight:700;font-size:13px
+}
+.chev{font-size:14px;color:var(--muted)}
+.collapsible{display:none;margin-top:10px}
+.collapsible.open{display:block}
+.historyItem{
+  padding:7px 0;border-top:1px solid #eee;display:grid;
+  grid-template-columns:1fr auto;gap:8px;font-size:12px
+}
+.badge{font-size:10px;background:#f3f4f6;padding:3px 6px;border-radius:999px}
+.cameraBox{display:none;margin-top:10px}
+.cameraBox.open{display:block}
+.videoWrap{position:relative;overflow:hidden;border-radius:12px;background:#000;aspect-ratio:3/4}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.scanFrame{
+  position:absolute;left:8%;right:8%;top:39%;height:22%;
+  border:3px solid var(--yellow);border-radius:12px;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.22);pointer-events:none
+}
+.cameraHint{margin-top:6px;font-size:11px;color:var(--muted);text-align:center}
+.message{margin-top:8px;padding:9px 10px;border-radius:9px;font-size:11px;display:none}
+.message.show{display:block}
+.message.good{background:#dcfce7;color:var(--green)}
+.message.warn{background:#fef3c7;color:#92400e}
+.smallbtn{padding:10px 10px;font-size:13px}
+
+/* 0.4: automatische Display-Anpassung */
+@media (max-height: 760px){
+  .wrap{padding:6px 8px 10px}.header{padding:9px 12px;margin-bottom:6px;border-radius:11px}
+  .header h1{font-size:16px}.header p{font-size:9px}.card{padding:8px;margin-bottom:6px;border-radius:11px}
+  .label{font-size:11px;margin-bottom:4px}button{padding:10px 8px;font-size:13px;border-radius:9px}
+  input{padding:8px 9px;font-size:15px}.big{font-size:17px}.status{font-size:11px}
+  .stats{margin-top:5px;gap:6px}.stat{padding:6px 8px}.stat strong{font-size:15px}
+  .footer{font-size:8px}.compactrow{grid-template-columns:76px 1fr;gap:6px}
+}
+@media (max-height: 680px){
+  .header p,.footer{display:none}.header{padding:7px 10px}.header h1{font-size:14px}
+  .card{padding:7px;margin-bottom:5px}.stats{display:flex}.stat{flex:1}
+}
+@media (min-width:700px){.wrap{max-width:680px}.header h1{font-size:22px}}
+</style>
+
+<style>
+/* 0.7: Kamera sauber zentriert + kompakter Einzelscan */
+.cameraBox {
+  width: 100%;
+}
+.videoWrap {
+  width: 100%;
+  height: 205px;
+  aspect-ratio: auto !important;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #000;
+  position: relative;
+}
+.videoWrap video,
+#video {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  margin: 0 !important;
+}
+.scanFrame {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 58%;
+  border-radius: 10px;
+  pointer-events: none;
+}
+.scan-trigger {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin: 8px 0 0 0;
+  border: 0;
+  border-radius: 14px;
+  background: #ffd23f;
+  color: #111;
+  font: inherit;
+  font-weight: 900;
+  font-size: 18px;
+}
+.scan-trigger:disabled { opacity: .55; }
+
+@media (max-height: 750px) {
+  .videoWrap { height: 165px; }
+  .scan-trigger { min-height: 46px; margin-top: 6px; font-size: 17px; }
+}
+
+/* 0.9: Sitzungs- und Sicherungsstatus */
+.safetyLine{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  margin-top:9px;
+  padding-top:8px;
+  border-top:1px solid #eee;
+  font-size:11px;
+  line-height:1.35;
+}
+.safetyOk{color:var(--green);font-weight:700}
+.safetyMuted{color:var(--muted)}
+.sessionLine{
+  margin-top:4px;
+  font-size:10px;
+  color:var(--muted);
+}
+
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>STRYKER INVENTUR SMART MOBILE</h1>
+    <p>Prototyp 0.9 · IndexedDB · lokale Sicherung</p>
+  </div>
+
+  <div class="card">
+    <span class="label">Bereich</span>
+    <div class="seg">
+      <button id="lagerBtn" class="area active" onclick="setArea('Lager')">LAGER</button>
+      <button id="vitoBtn" class="area" onclick="setArea('Vito')">VITO</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="compactrow">
+      <div>
+        <span class="label">Menge</span>
+        <input id="qty" type="number" min="1" step="1" value="1" inputmode="numeric">
+      </div>
+      <div>
+        <span class="label">Scan</span>
+        <button id="cameraBtn" class="scanbtn" style="margin-top:0" onclick="toggleCamera()">📷 BARCODE SCANNEN</button>
+      </div>
+    </div>
+
+    <div id="cameraBox" class="cameraBox">
+      <div class="videoWrap">
+        <video id="video" playsinline muted></video>
+        <div class="scanFrame"></div>
+      </div>
+      <button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
+      <div class="cameraHint">Barcode groß und mittig in den gelben Rahmen halten.</div>
+      <button class="secondary smallbtn" style="margin-top:8px" onclick="stopCamera()">KAMERA SCHLIESSEN</button>
+    </div>
+
+    <div id="cameraMessage" class="message"></div>
+  </div>
+
+  <div class="card">
+    <span class="label">Letzte Buchung</span>
+    <div id="lastArticle" class="big">Noch keine Buchung</div>
+    <div id="lastInfo" class="status muted">Bereich: Lager · Menge: 1</div>
+
+    <div class="stats">
+      <div class="stat"><span class="muted">Buchungen</span><strong id="positions">0</strong></div>
+      <div class="stat"><span class="muted">Stück gesamt</span><strong id="pieces">0</strong></div>
+    </div>
+
+    <div class="safetyLine">
+      <span id="localStatus" class="safetyOk">● Lokal gespeichert ✓ 0</span>
+      <span id="backupStatus" class="safetyMuted">Lokale Sicherung: noch keine</span>
+    </div>
+    <div id="sessionStatus" class="sessionLine">Inventur-Sitzung wird vorbereitet …</div>
+  </div>
+
+  <div class="card">
+    <div class="actionrow">
+      <button class="secondary" onclick="undoLast()">RÜCKGÄNGIG</button>
+      <button class="secondary" onclick="toggleHistory()">VERLAUF (<span id="historyCount">0</span>)</button>
+    </div>
+
+    <div id="historyBox" class="collapsible">
+      <div id="history" class="muted">Noch keine Daten.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="togglebar" onclick="toggleManual()">
+      <span>Manuelle Eingabe / Handscanner</span>
+      <span id="manualChev" class="chev">▼</span>
+    </div>
+    <div id="manualBox" class="collapsible">
+      <input id="article" type="text" autocomplete="off" autocapitalize="off"
+             placeholder="Artikelnummer eingeben oder scannen">
+      <button class="secondary smallbtn" style="margin-top:8px" onclick="addManual()">ÜBERNEHMEN</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="export" onclick="exportCSV()">INVENTUR SICHERN</button>
+  </div>
+
+  <div class="card">
+    <button class="danger smallbtn" onclick="clearAll()">ALLE LOKALEN DATEN LÖSCHEN</button>
+  </div>
+
+  <div class="footer">
+    Jede Buchung wird sofort lokal in IndexedDB gespeichert. Alle 100 Buchungen wird zusätzlich ein lokaler Sicherungsstand angelegt.
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script>
+const LEGACY_STORAGE_KEY='stryker_inventur_mobile_v03_scans';
+const AREA_KEY='stryker_inventur_mobile_v03_area';
+
+const DB_NAME='StrykerInventurSmartMobile';
+const DB_VERSION=1;
+const SCAN_STORE='scans';
+const META_STORE='meta';
+const BACKUP_STORE='backups';
+const BACKUP_INTERVAL=100;
+
+let area=localStorage.getItem(AREA_KEY)||'Lager';
+let scans=[];
+let db=null;
+let sessionId='';
+let lastBackupCount=0;
+
+let stream=null, reader=null, detecting=false;
+let audioCtx=null;
+
+function safeParse(s,fallback){
+  try{return JSON.parse(s)??fallback}catch(e){return fallback}
+}
+
+function formatLocalDate(date){
+  const p=n=>String(n).padStart(2,'0');
+  return `${p(date.getDate())}.${p(date.getMonth()+1)}.${date.getFullYear()} ${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
+}
+
+function makeSessionId(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return `INV-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function openDatabase(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+
+    req.onupgradeneeded=()=>{
+      const idb=req.result;
+
+      if(!idb.objectStoreNames.contains(SCAN_STORE)){
+        const store=idb.createObjectStore(SCAN_STORE,{keyPath:'id',autoIncrement:true});
+        store.createIndex('sessionId','sessionId',{unique:false});
+        store.createIndex('article','article',{unique:false});
+        store.createIndex('area','area',{unique:false});
+      }
+
+      if(!idb.objectStoreNames.contains(META_STORE)){
+        idb.createObjectStore(META_STORE,{keyPath:'key'});
+      }
+
+      if(!idb.objectStoreNames.contains(BACKUP_STORE)){
+        const store=idb.createObjectStore(BACKUP_STORE,{keyPath:'id',autoIncrement:true});
+        store.createIndex('sessionId','sessionId',{unique:false});
+        store.createIndex('count','count',{unique:false});
+      }
+    };
+
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbGet(storeName,key){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readonly');
+    const req=tx.objectStore(storeName).get(key);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbPut(storeName,value){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readwrite');
+    const req=tx.objectStore(storeName).put(value);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbAdd(storeName,value){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readwrite');
+    const req=tx.objectStore(storeName).add(value);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbGetAll(storeName){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readonly');
+    const req=tx.objectStore(storeName).getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbDelete(storeName,key){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readwrite');
+    const req=tx.objectStore(storeName).delete(key);
+    req.onsuccess=()=>resolve();
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function idbClear(storeName){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(storeName,'readwrite');
+    const req=tx.objectStore(storeName).clear();
+    req.onsuccess=()=>resolve();
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function getMeta(key,fallback=null){
+  const row=await idbGet(META_STORE,key);
+  return row ? row.value : fallback;
+}
+
+async function setMeta(key,value){
+  return idbPut(META_STORE,{key,value});
+}
+
+async function loadState(){
+  db=await openDatabase();
+
+  sessionId=await getMeta('activeSessionId','');
+  if(!sessionId){
+    sessionId=makeSessionId();
+    await setMeta('activeSessionId',sessionId);
+    await setMeta('sessionStartedAt',formatLocalDate(new Date()));
+  }
+
+  lastBackupCount=Number(await getMeta('lastBackupCount',0))||0;
+
+  // Einmalige Migration aus Version 0.8 / localStorage
+  const alreadyMigrated=await getMeta('legacyMigrated',false);
+  const allExisting=await idbGetAll(SCAN_STORE);
+
+  if(!alreadyMigrated && allExisting.length===0){
+    const legacy=safeParse(localStorage.getItem(LEGACY_STORAGE_KEY),[]);
+    if(Array.isArray(legacy) && legacy.length){
+      for(const item of legacy){
+        await idbAdd(SCAN_STORE,{
+          sessionId,
+          time:item.time||formatLocalDate(new Date()),
+          article:String(item.article||'').trim(),
+          area:item.area==='Vito'?'Vito':'Lager',
+          qty:Number(item.qty)||1,
+          status:'active'
+        });
+      }
+    }
+    await setMeta('legacyMigrated',true);
+  }
+
+  scans=(await idbGetAll(SCAN_STORE))
+    .filter(x=>x.sessionId===sessionId && x.status!=='cancelled')
+    .sort((a,b)=>Number(a.id)-Number(b.id));
+
+  // Falls bereits 100er-Grenzen erreicht wurden, aber Meta aus älteren Tests fehlt
+  const floorBackup=Math.floor(scans.length/BACKUP_INTERVAL)*BACKUP_INTERVAL;
+  if(lastBackupCount>scans.length) lastBackupCount=floorBackup;
+
+  render();
+}
+
+function setArea(value){
+  area=value;
+  localStorage.setItem(AREA_KEY,area);
+  document.getElementById('lagerBtn').classList.toggle('active',area==='Lager');
+  document.getElementById('vitoBtn').classList.toggle('active',area==='Vito');
+}
+
+function currentQty(){
+  const q=parseInt(document.getElementById('qty').value,10);
+  return Number.isInteger(q)&&q>0?q:1;
+}
+
+async function createLocalBackupIfNeeded(){
+  const target=Math.floor(scans.length/BACKUP_INTERVAL)*BACKUP_INTERVAL;
+  if(target<BACKUP_INTERVAL || target<=lastBackupCount) return;
+
+  const snapshot={
+    sessionId,
+    count:target,
+    createdAt:formatLocalDate(new Date()),
+    scans:scans.slice(0,target).map(s=>({
+      time:s.time, article:s.article, area:s.area, qty:s.qty
+    }))
+  };
+
+  await idbAdd(BACKUP_STORE,snapshot);
+  lastBackupCount=target;
+  await setMeta('lastBackupCount',lastBackupCount);
+
+  showCameraMessage(`✓ Lokale Sicherung ${target} erstellt`,'good');
+}
+
+async function bookArticle(article){
+  article=String(article||'').trim();
+  if(!article)return;
+
+  const item={
+    sessionId,
+    time:formatLocalDate(new Date()),
+    article,
+    area,
+    qty:currentQty(),
+    status:'active'
+  };
+
+  try{
+    const id=await idbAdd(SCAN_STORE,item);
+    item.id=id;
+    scans.push(item);
+    await createLocalBackupIfNeeded();
+    render();
+    document.getElementById('qty').value='1';
+  }catch(err){
+    console.error(err);
+    showCameraMessage('Speichern fehlgeschlagen. Bitte erneut versuchen.','warn');
+  }
+}
+
+function initAudio(){
+  try{
+    if(!audioCtx){
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(AudioContextClass) audioCtx=new AudioContextClass();
+    }
+    if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+}
+
+function confirmScan(){
+  if(navigator.vibrate) navigator.vibrate(90);
+
+  try{
+    initAudio();
+    if(!audioCtx) return;
+
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    const now=audioCtx.currentTime;
+
+    osc.type='sine';
+    osc.frequency.setValueAtTime(880,now);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.55,now+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.18);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now+0.19);
+  }catch(e){}
+}
+
+async function addManual(){
+  const el=document.getElementById('article');
+  const value=el.value.trim();
+  if(!value){el.focus();return}
+  await bookArticle(value);
+  el.value='';
+  el.focus();
+}
+
+function toggleManual(){
+  const box=document.getElementById('manualBox');
+  box.classList.toggle('open');
+  document.getElementById('manualChev').textContent=box.classList.contains('open')?'▲':'▼';
+}
+
+function toggleHistory(){
+  document.getElementById('historyBox').classList.toggle('open');
+}
+
+function showCameraMessage(text,type='warn'){
+  const el=document.getElementById('cameraMessage');
+  el.textContent=text;
+  el.className=`message show ${type}`;
+}
+
+function hideCameraMessage(){
+  document.getElementById('cameraMessage').className='message';
+}
+
+async function toggleCamera(){
+  if(stream){stopCamera();return}
+  await startCamera();
+}
+
+async function startCamera(){
+  hideCameraMessage();
+  initAudio();
+  if(typeof ZXing==='undefined'){
+    showCameraMessage('ZXing konnte nicht geladen werden. Internetverbindung prüfen.');
+    return;
+  }
+  try{
+    document.getElementById('cameraBox').classList.add('open');
+    document.getElementById('cameraBtn').textContent='KAMERA LÄUFT';
+    const hints=new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.ITF
+    ]);
+    reader=new ZXing.BrowserBarcodeReader(250,hints);
+    detecting=true;
+    showCameraMessage('Scanner aktiv – Barcode in den gelben Rahmen halten.','good');
+    const video=document.getElementById('video');
+    let scanArmed=false;
+    const trigger=document.getElementById('scanTrigger');
+
+    if(trigger){
+      trigger.disabled=false;
+      trigger.onclick=()=>{
+        initAudio();
+        scanArmed=true;
+        trigger.disabled=true;
+        trigger.textContent='SCANNEN…';
+        showCameraMessage('Barcode vor die Kamera halten.','good');
+      };
+    }
+
+    reader.decodeFromVideoDevice(undefined, video, async (res, err)=>{
+      if(!detecting || !res || !scanArmed) return;
+
+      const value=String(res.text||'').trim();
+      if(!value) return;
+
+      if(!/^[A-Za-z0-9-]{3,32}$/.test(value)){
+        showCameraMessage('Nicht eindeutig – Barcode bitte mittig halten.','warn');
+        return;
+      }
+
+      scanArmed=false;
+      await bookArticle(value);
+      confirmScan();
+      showCameraMessage(`✓ Gebucht: ${value}`,'good');
+
+      if(trigger){
+        trigger.disabled=false;
+        trigger.textContent='📷 SCANNEN';
+      }
+    });
+  }catch(err){
+    console.error(err);
+    showCameraMessage('Kamera konnte nicht geöffnet werden. Bitte Kameraberechtigung prüfen.');
+    stopCamera();
+  }
+}
+
+function stopCamera(){
+  detecting=false;
+  if(reader){try{reader.reset()}catch(e){} reader=null;}
+  const video=document.getElementById('video');
+  if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+  video.srcObject=null;
+  document.getElementById('cameraBox').classList.remove('open');
+  document.getElementById('cameraBtn').textContent='📷 BARCODE SCANNEN';
+}
+
+async function undoLast(){
+  if(!scans.length)return;
+  const last=scans[scans.length-1];
+
+  try{
+    await idbDelete(SCAN_STORE,last.id);
+    scans.pop();
+
+    // Sicherungsstand bleibt als historischer Sicherheitsstand erhalten,
+    // Status zeigt aber niemals mehr Buchungen als aktuell vorhanden.
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Die letzte Buchung konnte nicht zurückgenommen werden.');
+  }
+}
+
+async function clearAll(){
+  if(!scans.length)return;
+
+  if(confirm('Wirklich alle Daten der laufenden Inventur löschen?')){
+    if(confirm('Letzte Sicherheitsabfrage: Die laufende Inventur wirklich vollständig löschen?')){
+      try{
+        const all=await idbGetAll(SCAN_STORE);
+        const own=all.filter(x=>x.sessionId===sessionId);
+        for(const row of own) await idbDelete(SCAN_STORE,row.id);
+
+        scans=[];
+        lastBackupCount=0;
+        await setMeta('lastBackupCount',0);
+        render();
+      }catch(err){
+        console.error(err);
+        alert('Löschen fehlgeschlagen.');
+      }
+    }
+  }
+}
+
+function render(){
+  setArea(area);
+
+  document.getElementById('positions').textContent=scans.length;
+  document.getElementById('pieces').textContent=scans.reduce((s,x)=>s+Number(x.qty||0),0);
+  document.getElementById('historyCount').textContent=Math.min(scans.length,5);
+
+  const localStatus=document.getElementById('localStatus');
+  if(localStatus) localStatus.textContent=`● Lokal gespeichert ✓ ${scans.length}`;
+
+  const backupStatus=document.getElementById('backupStatus');
+  if(backupStatus){
+    const visibleBackup=Math.min(lastBackupCount,scans.length);
+    if(visibleBackup>=BACKUP_INTERVAL){
+      const next=Math.ceil((scans.length+1)/BACKUP_INTERVAL)*BACKUP_INTERVAL;
+      backupStatus.textContent=`Lokale Sicherung ✓ ${visibleBackup} · nächste bei ${next}`;
+    }else{
+      backupStatus.textContent=`Lokale Sicherung: nächste bei ${BACKUP_INTERVAL}`;
+    }
+  }
+
+  const sessionStatus=document.getElementById('sessionStatus');
+  if(sessionStatus){
+    sessionStatus.textContent=`Laufende Inventur · ${sessionId}`;
+  }
+
+  const last=scans[scans.length-1];
+  if(last){
+    document.getElementById('lastArticle').textContent=last.article;
+    document.getElementById('lastInfo').textContent=
+      `${last.time} · ${last.area} · Menge ${last.qty}`;
+  }else{
+    document.getElementById('lastArticle').textContent='Noch keine Buchung';
+    document.getElementById('lastInfo').textContent=`Bereich: ${area} · Menge: 1`;
+  }
+
+  const hist=document.getElementById('history');
+  const lastFive=scans.slice(-5).reverse();
+
+  if(!lastFive.length){
+    hist.className='muted';
+    hist.textContent='Noch keine Daten.';
+  }else{
+    hist.className='';
+    hist.innerHTML=lastFive.map(x=>
+      `<div class="historyItem">
+        <div><strong>${escapeHtml(x.article)}</strong><br><span class="muted">${escapeHtml(x.time)}</span></div>
+        <div><span class="badge">${escapeHtml(x.area)} · ${x.qty}</span></div>
+      </div>`
+    ).join('');
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+
+function csvEscape(value){
+  const s=String(value??'');
+  return '"' + s.replaceAll('"','""') + '"';
+}
+
+function exportCSV(){
+  if(!scans.length){
+    alert('Es sind noch keine Inventurdaten vorhanden.');
+    return;
+  }
+
+  const rows=[['Zeit','Artikelnummer','Bereich','Menge']];
+  scans.forEach(s=>rows.push([s.time,s.article,s.area,s.qty]));
+  const csv='\ufeff'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n');
+
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  a.href=url;
+  a.download=`Stryker_Inventur_Mobile_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+document.getElementById('article').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    addManual();
+  }
+});
+
+window.addEventListener('pagehide',stopCamera);
+
+(async ()=>{
+  try{
+    await loadState();
+  }catch(err){
+    console.error(err);
+    alert('Lokale Datenbank konnte nicht gestartet werden. Bitte Seite neu öffnen.');
+    render();
+  }
+})();
+</script>
+</body>
+</html>
