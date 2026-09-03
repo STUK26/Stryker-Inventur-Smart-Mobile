@@ -171,6 +171,62 @@ video{width:100%;height:100%;object-fit:cover;display:block}
   color:var(--muted);
 }
 
+
+/* 0.9: vollständiger Inventur-Verlauf */
+.historyOverlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  background:var(--bg);
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:max(12px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
+}
+.historyOverlay.open{display:block}
+.historyPage{max-width:540px;margin:0 auto}
+.historyTop{
+  background:var(--dark);color:#fff;border-radius:14px;
+  padding:14px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px
+}
+.historyTitle{font-size:18px;font-weight:900}
+.historySummary{font-size:11px;color:#d1d5db;margin-top:3px}
+.historyClose{
+  width:44px;height:44px;padding:0;border-radius:11px;background:#fff;color:#111;font-size:19px
+}
+.historyTotals{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0
+}
+.historyTotals div{
+  background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 1px 5px rgba(0,0,0,.06)
+}
+.historyTotals span{display:block;color:var(--muted);font-size:11px}
+.historyTotals strong{font-size:20px}
+.historySearch{background:#fff;margin-bottom:8px}
+.historyFilters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:9px}
+.histFilter{background:#e5e7eb;color:#111;padding:10px 7px;font-size:12px}
+.histFilter.active{background:var(--yellow)}
+.articleSearchSummary{
+  display:none;background:#fff7cc;border-radius:11px;padding:10px 12px;margin-bottom:8px;
+  font-size:12px;line-height:1.45
+}
+.articleSearchSummary.show{display:block}
+.fullHistoryList{
+  background:#fff;border-radius:13px;padding:0 12px;box-shadow:0 1px 5px rgba(0,0,0,.06)
+}
+.fullHistoryItem{
+  padding:11px 0;border-top:1px solid #eee;display:grid;grid-template-columns:1fr auto;gap:10px
+}
+.fullHistoryItem:first-child{border-top:0}
+.fullHistoryArticle{font-size:16px;font-weight:850;word-break:break-all}
+.fullHistoryTime{font-size:10px;color:var(--muted);margin-top:2px}
+.fullHistoryBadge{
+  align-self:center;font-size:11px;background:#f3f4f6;padding:5px 8px;border-radius:999px;white-space:nowrap
+}
+.loadMore{display:none;margin:10px 0 4px}
+.loadMore.show{display:block}
+.historyEmpty{padding:18px 4px;text-align:center;color:var(--muted);font-size:12px}
+
 </style>
 
 </head>
@@ -178,7 +234,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.9 · IndexedDB · lokale Sicherung</p>
+    <p>Prototyp 0.9 · IndexedDB · Verlauf & Suche</p>
   </div>
 
   <div class="card">
@@ -264,6 +320,40 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 
   <div class="footer">
     Jede Buchung wird sofort lokal in IndexedDB gespeichert. Alle 100 Buchungen wird zusätzlich ein lokaler Sicherungsstand angelegt.
+  </div>
+
+  <div id="historyOverlay" class="historyOverlay" aria-hidden="true">
+    <div class="historyPage">
+      <div class="historyTop">
+        <div>
+          <div class="historyTitle">INVENTUR-VERLAUF</div>
+          <div id="historySummary" class="historySummary">0 Buchungen · 0 Stück</div>
+        </div>
+        <button class="historyClose" onclick="closeFullHistory()">✕</button>
+      </div>
+
+      <div class="historyTotals">
+        <div><span>Lager</span><strong id="histLager">0</strong></div>
+        <div><span>Vito</span><strong id="histVito">0</strong></div>
+      </div>
+
+      <input id="historySearch" class="historySearch" type="search"
+             inputmode="search" autocomplete="off"
+             placeholder="🔍 Artikelnummer suchen">
+
+      <div class="historyFilters">
+        <button id="filterAll" class="histFilter active" onclick="setHistoryFilter('Alle')">ALLE</button>
+        <button id="filterLager" class="histFilter" onclick="setHistoryFilter('Lager')">LAGER</button>
+        <button id="filterVito" class="histFilter" onclick="setHistoryFilter('Vito')">VITO</button>
+      </div>
+
+      <div id="articleSearchSummary" class="articleSearchSummary"></div>
+      <div id="fullHistoryList" class="fullHistoryList"></div>
+
+      <button id="loadMoreHistory" class="secondary loadMore" onclick="loadMoreHistory()">
+        WEITERE 50 ANZEIGEN
+      </button>
+    </div>
   </div>
 </div>
 
@@ -547,8 +637,110 @@ function toggleManual(){
   document.getElementById('manualChev').textContent=box.classList.contains('open')?'▲':'▼';
 }
 
+let historyFilter='Alle';
+let historyVisible=50;
+
 function toggleHistory(){
-  document.getElementById('historyBox').classList.toggle('open');
+  openFullHistory();
+}
+
+function openFullHistory(){
+  historyVisible=50;
+  historyFilter='Alle';
+  const search=document.getElementById('historySearch');
+  if(search) search.value='';
+  updateHistoryFilterButtons();
+  renderFullHistory();
+  const overlay=document.getElementById('historyOverlay');
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}
+
+function closeFullHistory(){
+  const overlay=document.getElementById('historyOverlay');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+
+function setHistoryFilter(value){
+  historyFilter=value;
+  historyVisible=50;
+  updateHistoryFilterButtons();
+  renderFullHistory();
+}
+
+function updateHistoryFilterButtons(){
+  ['Alle','Lager','Vito'].forEach(v=>{
+    const id=v==='Alle'?'filterAll':(v==='Lager'?'filterLager':'filterVito');
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('active',historyFilter===v);
+  });
+}
+
+function loadMoreHistory(){
+  historyVisible+=50;
+  renderFullHistory();
+}
+
+function renderFullHistory(){
+  const query=(document.getElementById('historySearch')?.value||'').trim().toLowerCase();
+
+  const totalPieces=scans.reduce((sum,x)=>sum+Number(x.qty||0),0);
+  const lagerScans=scans.filter(x=>x.area==='Lager');
+  const vitoScans=scans.filter(x=>x.area==='Vito');
+  const lagerPieces=lagerScans.reduce((sum,x)=>sum+Number(x.qty||0),0);
+  const vitoPieces=vitoScans.reduce((sum,x)=>sum+Number(x.qty||0),0);
+
+  document.getElementById('historySummary').textContent=
+    `${scans.length} Buchungen · ${totalPieces} Stück`;
+  document.getElementById('histLager').textContent=`${lagerScans.length} · ${lagerPieces} Stk.`;
+  document.getElementById('histVito').textContent=`${vitoScans.length} · ${vitoPieces} Stk.`;
+
+  let filtered=scans.filter(x=>{
+    const areaOk=historyFilter==='Alle' || x.area===historyFilter;
+    const queryOk=!query || String(x.article||'').toLowerCase().includes(query);
+    return areaOk && queryOk;
+  }).slice().reverse();
+
+  const summary=document.getElementById('articleSearchSummary');
+  if(query){
+    const articleMatches=scans.filter(x=>String(x.article||'').toLowerCase().includes(query));
+    const qty=articleMatches.reduce((s,x)=>s+Number(x.qty||0),0);
+    const lagerQty=articleMatches.filter(x=>x.area==='Lager').reduce((s,x)=>s+Number(x.qty||0),0);
+    const vitoQty=articleMatches.filter(x=>x.area==='Vito').reduce((s,x)=>s+Number(x.qty||0),0);
+    summary.innerHTML=
+      `<strong>Suchergebnis: ${escapeHtml(document.getElementById('historySearch').value.trim())}</strong><br>`+
+      `${articleMatches.length} Buchungen · ${qty} Stück · Lager ${lagerQty} · Vito ${vitoQty}`;
+    summary.classList.add('show');
+  }else{
+    summary.classList.remove('show');
+    summary.innerHTML='';
+  }
+
+  const list=document.getElementById('fullHistoryList');
+  const visible=filtered.slice(0,historyVisible);
+
+  if(!visible.length){
+    list.innerHTML='<div class="historyEmpty">Keine passenden Buchungen gefunden.</div>';
+  }else{
+    list.innerHTML=visible.map(x=>
+      `<div class="fullHistoryItem">
+        <div>
+          <div class="fullHistoryArticle">${escapeHtml(x.article)}</div>
+          <div class="fullHistoryTime">${escapeHtml(x.time)}</div>
+        </div>
+        <div class="fullHistoryBadge">${escapeHtml(x.area)} · ${Number(x.qty||0)}</div>
+      </div>`
+    ).join('');
+  }
+
+  const more=document.getElementById('loadMoreHistory');
+  more.classList.toggle('show',filtered.length>historyVisible);
+  if(filtered.length>historyVisible){
+    more.textContent=`WEITERE 50 ANZEIGEN · ${filtered.length-historyVisible} ÜBRIG`;
+  }
 }
 
 function showCameraMessage(text,type='warn'){
@@ -686,7 +878,7 @@ function render(){
 
   document.getElementById('positions').textContent=scans.length;
   document.getElementById('pieces').textContent=scans.reduce((s,x)=>s+Number(x.qty||0),0);
-  document.getElementById('historyCount').textContent=Math.min(scans.length,5);
+  document.getElementById('historyCount').textContent=scans.length;
 
   const localStatus=document.getElementById('localStatus');
   if(localStatus) localStatus.textContent=`● Lokal gespeichert ✓ ${scans.length}`;
@@ -772,6 +964,11 @@ document.getElementById('article').addEventListener('keydown',e=>{
     e.preventDefault();
     addManual();
   }
+});
+
+document.getElementById('historySearch').addEventListener('input',()=>{
+  historyVisible=50;
+  renderFullHistory();
 });
 
 window.addEventListener('pagehide',stopCamera);
