@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 1.4</title>
+<title>Stryker Inventur Smart Mobile 1.5</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -285,7 +285,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Version 1.4 · Inventurabschluss · Einzelscan</p>
+    <p>Version 1.5 · Inventurabschluss · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -1058,7 +1058,7 @@ function openFinishInventory(){
   document.getElementById('finishPieces').textContent=s.pieces;
   document.getElementById('finishLager').textContent=s.lager+' Stk.';
   document.getElementById('finishVito').textContent=s.vito+' Stk.';
-  document.getElementById('finishSession').textContent='Inventur: '+(activeSessionId||'laufende Inventur');
+  document.getElementById('finishSession').textContent='Inventur: '+(sessionId||'laufende Inventur');
   const o=document.getElementById('finishOverlay');o.classList.add('open');o.setAttribute('aria-hidden','false');
 }
 function closeFinishInventory(){
