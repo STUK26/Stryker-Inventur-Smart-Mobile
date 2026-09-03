@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 1.3</title>
+<title>Stryker Inventur Smart Mobile 1.4</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -263,6 +263,21 @@ video{width:100%;height:100%;object-fit:cover;display:block}
   .cameraControls .scan-trigger{min-height:44px;font-size:14px}
 }
 
+
+.finishInventory{width:100%;margin-top:8px;background:#111;color:#fff;border:2px solid #111}
+.finishOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.finishOverlay.open{display:flex}
+.finishDialog{width:min(520px,100%);background:#fff;border-radius:22px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.finishTitle{font-size:22px;font-weight:900;margin-bottom:8px}
+.finishText{font-size:14px;line-height:1.4;color:#555}
+.finishStats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 10px}
+.finishStats div{background:#f4f5f7;border-radius:14px;padding:12px}
+.finishStats span{display:block;color:#6b7280;font-size:12px;margin-bottom:3px}
+.finishStats strong{display:block;font-size:24px}
+.finishSession{font-size:11px;color:#7a7f89;margin:8px 2px 14px;overflow-wrap:anywhere}
+.finishConfirm{width:100%;background:var(--yellow);color:#111;min-height:50px}
+.finishCancel{width:100%;background:#e5e7eb;color:#111;margin-top:8px;min-height:46px}
+
 </style>
 
 </head>
@@ -270,7 +285,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Version 1.3 · Verlauf · Licht · Einzelscan</p>
+    <p>Version 1.4 · Inventurabschluss · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -351,6 +366,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 
   <div class="card">
     <button class="export" onclick="exportCSV()">INVENTUR SICHERN</button>
+      <button id="finishInventoryBtn" class="finishInventory" type="button" onclick="openFinishInventory()">✓ INVENTUR ABSCHLIESSEN</button>
   </div>
 
   <div class="card">
@@ -1023,6 +1039,37 @@ function csvEscape(value){
   return '"' + s.replaceAll('"','""') + '"';
 }
 
+
+function getInventorySummary(){
+  const rows=Array.isArray(scans)?scans:[];
+  let pieces=0,lager=0,vito=0;
+  rows.forEach(r=>{
+    const q=Number(r.qty)||0;
+    pieces+=q;
+    if(String(r.area).toLowerCase()==='lager') lager+=q;
+    if(String(r.area).toLowerCase()==='vito') vito+=q;
+  });
+  return {bookings:rows.length,pieces,lager,vito};
+}
+function openFinishInventory(){
+  const s=getInventorySummary();
+  if(!s.bookings){alert('Es sind noch keine Buchungen vorhanden.');return;}
+  document.getElementById('finishBookings').textContent=s.bookings;
+  document.getElementById('finishPieces').textContent=s.pieces;
+  document.getElementById('finishLager').textContent=s.lager+' Stk.';
+  document.getElementById('finishVito').textContent=s.vito+' Stk.';
+  document.getElementById('finishSession').textContent='Inventur: '+(activeSessionId||'laufende Inventur');
+  const o=document.getElementById('finishOverlay');o.classList.add('open');o.setAttribute('aria-hidden','false');
+}
+function closeFinishInventory(){
+  const o=document.getElementById('finishOverlay');o.classList.remove('open');o.setAttribute('aria-hidden','true');
+}
+function finishInventory(){
+  exportCSV();
+  closeFinishInventory();
+  setTimeout(()=>alert('Finale Inventurdatei wurde erstellt. Deine lokalen Buchungen bleiben zur Sicherheit erhalten.'),150);
+}
+
 function exportCSV(){
   if(!scans.length){
     alert('Es sind noch keine Inventurdaten vorhanden.');
@@ -1071,5 +1118,22 @@ window.addEventListener('pagehide',stopCamera);
   }
 })();
 </script>
+
+<div id="finishOverlay" class="finishOverlay" aria-hidden="true">
+  <div class="finishDialog">
+    <div class="finishTitle">INVENTUR ABSCHLIESSEN</div>
+    <div class="finishText">Bitte prüfe die Zusammenfassung. Beim Abschluss wird eine finale CSV erstellt. Die lokalen Buchungen werden <b>nicht automatisch gelöscht</b>.</div>
+    <div class="finishStats">
+      <div><span>Buchungen</span><strong id="finishBookings">0</strong></div>
+      <div><span>Stück gesamt</span><strong id="finishPieces">0</strong></div>
+      <div><span>Lager</span><strong id="finishLager">0</strong></div>
+      <div><span>Vito</span><strong id="finishVito">0</strong></div>
+    </div>
+    <div class="finishSession" id="finishSession"></div>
+    <button class="finishConfirm" type="button" onclick="finishInventory()">✓ JA, INVENTUR ABSCHLIESSEN</button>
+    <button class="finishCancel" type="button" onclick="closeFinishInventory()">ABBRECHEN</button>
+  </div>
+</div>
+
 </body>
 </html>
