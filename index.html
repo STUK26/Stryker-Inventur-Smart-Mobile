@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>Stryker Inventur Smart Mobile 1.1</title>
+<title>Stryker Inventur Smart Mobile 1.2</title>
 <style>
 :root{
   --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280;
@@ -228,7 +228,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .historyEmpty{padding:18px 4px;text-align:center;color:var(--muted);font-size:12px}
 
 
-/* 1.1: LICHT-Logik wie im funktionierenden Lieferschein-Scanner */
+/* 1.2: Licht wird beim Schließen zuerst sauber ausgeschaltet */
 .cameraBox.open{
   padding-top:6px;
 }
@@ -270,7 +270,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Version 1.1 · Verlauf · Licht · Einzelscan</p>
+    <p>Version 1.2 · Verlauf · Licht · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -894,20 +894,27 @@ async function toggleTorch(){
   }
 }
 
-function stopCamera(){
+async function stopCamera(){
   detecting=false;
-  if(torchOn && video.srcObject){
+
+  const video=document.getElementById('video');
+
+  if(torchOn && video && video.srcObject){
     try{
       const track=video.srcObject.getVideoTracks()[0];
-      track.applyConstraints({advanced:[{torch:false}]});
+      if(track){
+        await track.applyConstraints({advanced:[{torch:false}]});
+      }
     }catch(e){}
   }
+
   torchOn=false;
   const torchBtn=document.getElementById('torchBtn');
   if(torchBtn){
     torchBtn.classList.remove('active');
     torchBtn.textContent='🔦 LICHT';
   }
+
   if(reader){try{reader.reset()}catch(e){} reader=null;}
   const video=document.getElementById('video');
   if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
