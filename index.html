@@ -227,6 +227,42 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .loadMore.show{display:block}
 .historyEmpty{padding:18px 4px;text-align:center;color:var(--muted);font-size:12px}
 
+
+/* 0.9: Kamera + Licht, ohne Änderung der Barcode-Erkennung */
+.cameraBox.open{
+  padding-top:6px;
+}
+.cameraControls{
+  display:grid;
+  grid-template-columns:0.85fr 1.3fr 0.95fr;
+  gap:7px;
+  margin-top:8px;
+}
+.cameraControl{
+  min-height:48px;
+  margin:0 !important;
+  padding:9px 5px;
+  font-size:12px;
+  border-radius:12px;
+}
+.cameraControls .scan-trigger{
+  min-height:48px;
+  font-size:15px;
+}
+#torchBtn.active{
+  background:var(--yellow);
+  color:#111;
+}
+@supports (padding-top: env(safe-area-inset-top)){
+  .wrap{
+    padding-top:max(10px, env(safe-area-inset-top));
+  }
+}
+@media (max-height:750px){
+  .cameraControl{min-height:44px}
+  .cameraControls .scan-trigger{min-height:44px;font-size:14px}
+}
+
 </style>
 
 </head>
@@ -234,7 +270,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <div class="wrap">
   <div class="header">
     <h1>STRYKER INVENTUR SMART MOBILE</h1>
-    <p>Prototyp 0.9 · IndexedDB · Verlauf & Suche</p>
+    <p>Prototyp 0.9 · Verlauf · Licht · Einzelscan</p>
   </div>
 
   <div class="card">
@@ -262,9 +298,12 @@ video{width:100%;height:100%;object-fit:cover;display:block}
         <video id="video" playsinline muted></video>
         <div class="scanFrame"></div>
       </div>
-      <button id="scanTrigger" class="scan-trigger" type="button" disabled>📷 SCANNEN</button>
+      <div class="cameraControls">
+        <button id="torchBtn" class="cameraControl secondary" type="button" onclick="toggleTorch()" disabled>🔦 LICHT</button>
+        <button id="scanTrigger" class="cameraControl scan-trigger" type="button" disabled>📷 SCANNEN</button>
+        <button class="cameraControl secondary" type="button" onclick="stopCamera()">✕ SCHLIESSEN</button>
+      </div>
       <div class="cameraHint">Barcode groß und mittig in den gelben Rahmen halten.</div>
-      <button class="secondary smallbtn" style="margin-top:8px" onclick="stopCamera()">KAMERA SCHLIESSEN</button>
     </div>
 
     <div id="cameraMessage" class="message"></div>
@@ -376,6 +415,7 @@ let sessionId='';
 let lastBackupCount=0;
 
 let stream=null, reader=null, detecting=false;
+let torchTrack=null, torchOn=false;
 let audioCtx=null;
 
 function safeParse(s,fallback){
@@ -796,6 +836,8 @@ async function startCamera(){
       };
     }
 
+    setTimeout(setupTorch,700);
+
     reader.decodeFromVideoDevice(undefined, video, async (res, err)=>{
       if(!detecting || !res || !scanArmed) return;
 
@@ -824,8 +866,72 @@ async function startCamera(){
   }
 }
 
+async function setupTorch(){
+  torchTrack=null;
+  torchOn=false;
+  const btn=document.getElementById('torchBtn');
+  if(btn){
+    btn.disabled=true;
+    btn.classList.remove('active');
+    btn.textContent='🔦 LICHT';
+  }
+
+  try{
+    const video=document.getElementById('video');
+    const activeStream=video.srcObject;
+    if(!activeStream) return;
+
+    const tracks=activeStream.getVideoTracks();
+    if(!tracks.length) return;
+
+    const track=tracks[0];
+    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    if(caps && caps.torch){
+      torchTrack=track;
+      if(btn) btn.disabled=false;
+    }
+  }catch(e){
+    console.warn('Torch nicht verfügbar',e);
+  }
+}
+
+async function toggleTorch(){
+  const btn=document.getElementById('torchBtn');
+  if(!torchTrack){
+    showCameraMessage('Licht wird von dieser Kamera nicht unterstützt.','warn');
+    return;
+  }
+
+  try{
+    torchOn=!torchOn;
+    await torchTrack.applyConstraints({advanced:[{torch:torchOn}]});
+    if(btn){
+      btn.classList.toggle('active',torchOn);
+      btn.textContent=torchOn?'🔦 LICHT AN':'🔦 LICHT';
+    }
+  }catch(e){
+    torchOn=false;
+    if(btn){
+      btn.classList.remove('active');
+      btn.textContent='🔦 LICHT';
+    }
+    showCameraMessage('Licht konnte nicht eingeschaltet werden.','warn');
+  }
+}
+
 function stopCamera(){
   detecting=false;
+  if(torchTrack && torchOn){
+    try{torchTrack.applyConstraints({advanced:[{torch:false}]})}catch(e){}
+  }
+  torchTrack=null;
+  torchOn=false;
+  const torchBtn=document.getElementById('torchBtn');
+  if(torchBtn){
+    torchBtn.disabled=true;
+    torchBtn.classList.remove('active');
+    torchBtn.textContent='🔦 LICHT';
+  }
   if(reader){try{reader.reset()}catch(e){} reader=null;}
   const video=document.getElementById('video');
   if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
