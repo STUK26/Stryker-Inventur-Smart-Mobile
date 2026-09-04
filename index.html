@@ -635,6 +635,9 @@ async function bookArticle(article){
   if(!article)return;
 
   const item={
+    bookingId: (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : `${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
     sessionId,
     time:formatLocalDate(new Date()),
     article,
