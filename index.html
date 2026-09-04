@@ -1182,8 +1182,8 @@ function exportCSV(){
     return;
   }
 
-  const rows=[['Zeit','Artikelnummer','Bereich','Menge']];
-  scans.forEach(s=>rows.push([s.time,s.article,s.area,s.qty]));
+  const rows=[['Zeit','Artikelnummer','Bereich','Menge','Buchungs-ID']];
+  scans.forEach(s=>rows.push([s.time,s.article,s.area,s.qty,s.bookingId||'']));
   const csv='\ufeff'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n');
 
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
